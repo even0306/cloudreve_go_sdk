@@ -122,7 +122,7 @@ func NewFileUploadFunc() *FileUploadResp {
 
 // 获取目录列表
 func (list *DirectoryList) GetDirectoryList(path string) {
-	resp, err := Client.Get(RespUrl + "/api/v3/directory" + path)
+	resp, err := Client.Get(ReqHost + "/api/v3/directory" + path)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -137,7 +137,7 @@ func (list *DirectoryList) GetDirectoryList(path string) {
 
 // 下载文件
 func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, path string) {
-	req, err := http.NewRequest("PUT", RespUrl+"/api/v3/file/download/"+fileInfo.ID, nil)
+	req, err := http.NewRequest("PUT", ReqHost+"/api/v3/file/download/"+fileInfo.ID, nil)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -163,7 +163,7 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, path str
 		slog.Error(fmt.Sprint(fileDownloadResp.Code), "Msg", fileDownloadResp.Msg, "Data", fileDownloadResp.Data)
 	}
 
-	req, err = http.NewRequest("GET", RespUrl+fileDownloadResp.Data, nil)
+	req, err = http.NewRequest("GET", ReqHost+fileDownloadResp.Data, nil)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -208,7 +208,7 @@ func (fileUploadResp *FileUploadResp) Upload(reqInfo FileUploadReq) (FileUploadR
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	req, err := http.NewRequest("PUT", RespUrl+"/api/v3/file/upload", &buf)
+	req, err := http.NewRequest("PUT", ReqHost+"/api/v3/file/upload", &buf)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -235,7 +235,7 @@ func (fileUploadResp *FileUploadResp) Upload(reqInfo FileUploadReq) (FileUploadR
 		return *fileUploadResp, false
 	}
 
-	req, err = http.NewRequest("GET", RespUrl+"/api/v3/callback/s3"+fileUploadResp.Data.SessionID, nil)
+	req, err = http.NewRequest("GET", ReqHost+"/api/v3/callback/s3"+fileUploadResp.Data.SessionID, nil)
 	if err != nil {
 		slog.Error(err.Error())
 	}

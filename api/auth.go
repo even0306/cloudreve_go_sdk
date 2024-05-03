@@ -55,7 +55,7 @@ func NewAuthFunc() *AuthRespBody {
 func (respBody *AuthRespBody) Login(loginData map[string]any) {
 	bytesData, _ := json.Marshal(loginData)
 
-	req, err := http.NewRequest("POST", RespUrl+"/api/v3/user/session", bytes.NewReader(bytesData))
+	req, err := http.NewRequest("POST", ReqHost+"/api/v3/user/session", bytes.NewReader(bytesData))
 	if err != nil {
 		slog.Error(err.Error())
 	}

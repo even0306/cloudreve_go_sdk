@@ -61,7 +61,7 @@ func (respBody *UserRespBody) GetUserProfile(id string) {
 	params := url.Values{}
 	params.Add("type", "default")
 	params.Add("page", "1")
-	req, err := http.NewRequest("GET", RespUrl+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
+	req, err := http.NewRequest("GET", ReqHost+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
 	if err != nil {
 		slog.Error(err.Error())
 	}
