@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-
-	"github.com/cloudreve_client/v2/client"
 )
 
 type Auth interface {
@@ -57,24 +55,24 @@ func NewAuthFunc() *AuthRespBody {
 func (respBody *AuthRespBody) Login(loginData map[string]any) {
 	bytesData, _ := json.Marshal(loginData)
 
-	req, err := http.NewRequest("POST", client.RespUrl+"/api/v3/user/session", bytes.NewReader(bytesData))
+	req, err := http.NewRequest("POST", RespUrl+"/api/v3/user/session", bytes.NewReader(bytesData))
 	if err != nil {
 		slog.Error(err.Error())
 	}
 
-	resp, err := client.Client.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("", "Status", resp.StatusCode)
+		slog.Warn("", "Status", resp.StatusCode)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	slog.Info("返回结果：", slog.Int("Code:", respBody.Code), slog.String("Msg:", respBody.Msg), slog.Any("Data:", respBody.Data))
+	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
 }

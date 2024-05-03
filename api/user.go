@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/cloudreve_client/v2/client"
 )
 
 type UserAPI interface {
@@ -63,18 +61,18 @@ func (respBody *UserRespBody) GetUserProfile(id string) {
 	params := url.Values{}
 	params.Add("type", "default")
 	params.Add("page", "1")
-	req, err := http.NewRequest("GET", client.RespUrl+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
+	req, err := http.NewRequest("GET", RespUrl+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	resp, err := client.Client.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("", "Status", resp.StatusCode)
+		slog.Warn("", "Status", resp.StatusCode)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
@@ -82,5 +80,5 @@ func (respBody *UserRespBody) GetUserProfile(id string) {
 		slog.Error(err.Error())
 	}
 
-	slog.Info("返回结果：", slog.Int("Code:", respBody.Code), slog.String("Msg:", respBody.Msg), slog.Any("Data:", respBody.Data))
+	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
 }
