@@ -231,44 +231,38 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst stri
 }
 
 // 上传文件
-func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, reqInfo FileUploadReq) {
+func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, reqInfo FileUploadReq) error {
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(reqInfo)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	req, err := http.NewRequest("PUT", requrl.ReqHost+"/api/v3/file/upload", &buf)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	// 创建上传会话
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&fileUploadResp)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	slog.Debug(fmt.Sprint(fileUploadResp.Code), "Data", fileUploadResp.Data, "Msg", fileUploadResp.Msg)
 
 	if fileUploadResp.Code != 0 {
-		slog.Error(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
-		return
+		return fmt.Errorf(fmt.Sprint(fileUploadResp.Code), fileUploadResp.Msg, fileUploadResp.Data)
 	}
 
 	// 根据存储类型上传文件
@@ -280,10 +274,15 @@ func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, req
 			CompleteURL: fileUploadResp.Data.CompleteURL,
 		}
 		s3 := upload.NewS3FileUploadFunc(fileUploadReq)
-		s3.Upload(srcPath)
+		err = s3.Upload(srcPath)
+		if err != nil {
+			return err
+		}
 	default:
-		slog.Warn("不存在的存储类型")
+		return fmt.Errorf("不支持的存储类型")
 	}
+
+	return nil
 }
 
 // 删除上传会话

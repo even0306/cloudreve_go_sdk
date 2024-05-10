@@ -50,5 +50,8 @@ func TestMain(t *testing.T) {
 	}
 
 	up := NewFileUploadFunc()
-	up.Upload("s3", srcPath, reqInfo)
+	err = up.Upload("s3", srcPath, reqInfo)
+	if err != nil {
+		slog.Error(err.Error())
+	}
 }

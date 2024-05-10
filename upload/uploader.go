@@ -13,7 +13,7 @@ import (
 )
 
 type UploadFunc interface {
-	Upload(srcPath string)
+	Upload(srcPath string) error
 }
 
 type S3FileUploadReq struct {
@@ -50,7 +50,7 @@ func NewStorageFileUploadResp() *StorageFileUploadResp {
 }
 
 // S3上传
-func (u *S3FileUploadResp) Upload(srcPath string) {
+func (u *S3FileUploadResp) Upload(srcPath string) error {
 	file, err := os.Open(srcPath)
 	if err != nil {
 		slog.Error(err.Error())
@@ -66,33 +66,28 @@ func (u *S3FileUploadResp) Upload(srcPath string) {
 	// 开始上传
 	req, err := http.NewRequest("PUT", s3FileUploadReq.UploadURL, body)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	u.Etag = resp.Header.Get("Etag")
 
 	u.Data, err = io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if u.Data != nil && string(u.Data) != "" {
-		slog.Error(string(u.Data))
-		return
+		return fmt.Errorf(string(u.Data))
 	}
 
 	xmlBody := "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>" + u.Etag + "</ETag></Part></CompleteMultipartUpload>"
@@ -100,31 +95,26 @@ func (u *S3FileUploadResp) Upload(srcPath string) {
 	// 完成上传
 	req, err = http.NewRequest("POST", s3FileUploadReq.CompleteURL, bytes.NewReader([]byte(xmlBody)))
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err = requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	u.Data, err = io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if string(u.Data) == "" {
-		slog.Error(string(u.Data))
-		return
+		return fmt.Errorf(string(u.Data))
 	}
 
 	slog.Info(string(u.Data))
@@ -132,57 +122,52 @@ func (u *S3FileUploadResp) Upload(srcPath string) {
 	// 验证上传完
 	req, err = http.NewRequest("GET", requrl.ReqHost+"/api/v3/callback/s3/"+s3FileUploadReq.Session, nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err = requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&u)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if u.Code != 0 {
-		slog.Error(fmt.Sprint(u.Code), "Msg", u.Msg)
-		return
+		return fmt.Errorf(fmt.Sprint(u.Code), "Msg", u.Msg)
 	}
+
+	return nil
 }
 
 // 本地存储上传
-func (u *StorageFileUploadResp) Upload(srcPath string) {
+func (u *StorageFileUploadResp) Upload(srcPath string) error {
 	req, err := http.NewRequest("GET", requrl.ReqHost+"/api/v3/callback/s3"+s3FileUploadReq.Session, nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&u)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
+
+	return nil
 }
