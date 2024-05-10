@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/even0306/cloudreve_go_sdk/api/requrl"
+	"github.com/even0306/cloudreve_go_sdk/requrl"
 )
 
 type UploadFunc interface {
