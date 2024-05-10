@@ -231,7 +231,7 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst stri
 }
 
 // 上传文件
-func (fileUploadResp *FileUploadResp) Upload(storage string, reqInfo FileUploadReq) {
+func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, reqInfo FileUploadReq) {
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(reqInfo)
 	if err != nil {
@@ -279,7 +279,7 @@ func (fileUploadResp *FileUploadResp) Upload(storage string, reqInfo FileUploadR
 			CompleteURL: fileUploadResp.Data.CompleteURL,
 		}
 		s3 := upload.NewS3FileUploadFunc(fileUploadReq)
-		s3.Upload()
+		s3.Upload(srcPath)
 	default:
 		slog.Warn("不存在的存储类型")
 	}

@@ -21,7 +21,8 @@ func TestMain(t *testing.T) {
 
 	requrl.Default(c.GetString("address"))
 
-	f, err := os.Stat("D:\\Users\\even0\\Desktop\\20190416074543图片8.png")
+	srcPath := "D:\\Users\\even0\\Desktop\\20190416074543图片8.png"
+	f, err := os.Stat(srcPath)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -49,5 +50,5 @@ func TestMain(t *testing.T) {
 	}
 
 	up := NewFileUploadFunc()
-	up.Upload("s3", reqInfo)
+	up.Upload("s3", srcPath, reqInfo)
 }
