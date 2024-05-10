@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/even0306/cloudreve_go_sdk/requrl"
+	"github.com/even0306/cloudreve_go_sdk/api/requrl"
 )
 
 type UserAPI interface {
