@@ -8,12 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/even0306/cloudreve_go_sdk/requrl"
 )
 
 type UploadFunc interface {
-	Upload(srcPath string) error
+	// 传入待上传文件的路径和请求结构体
+	Upload(srcPath string, reqInfo any) error
 }
 
 type S3FileUploadReq struct {
@@ -112,7 +114,9 @@ func (u *S3FileUploadResp) Upload(srcPath string, reqInfo any) error {
 		return err
 	}
 
-	if string(u.Data) == "" {
+	spXml := strings.Split(string(u.Data), "<Code>")
+	Code := strings.Split(spXml[1], "</Code>")
+	if Code[0] == "AccessDenied" {
 		return fmt.Errorf(string(u.Data))
 	}
 
