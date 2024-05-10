@@ -90,12 +90,12 @@ func (u *S3FileUploadResp) Upload(srcPath string) {
 		return
 	}
 
-	if u.Data != nil {
+	if u.Data != nil && string(u.Data) != "" {
 		slog.Error(string(u.Data))
 		return
 	}
 
-	xmlBody := "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"" + u.Etag + "\"</ETag></Part></CompleteMultipartUpload>"
+	xmlBody := "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>" + u.Etag + "</ETag></Part></CompleteMultipartUpload>"
 
 	// 完成上传
 	req, err = http.NewRequest("POST", s3FileUploadReq.CompleteURL, bytes.NewReader([]byte(xmlBody)))
@@ -130,7 +130,7 @@ func (u *S3FileUploadResp) Upload(srcPath string) {
 	slog.Info(string(u.Data))
 
 	// 验证上传完
-	req, err = http.NewRequest("GET", requrl.ReqHost+"/api/v3/callback/s3"+s3FileUploadReq.Session, nil)
+	req, err = http.NewRequest("GET", requrl.ReqHost+"/api/v3/callback/s3/"+s3FileUploadReq.Session, nil)
 	if err != nil {
 		slog.Error(err.Error())
 		return

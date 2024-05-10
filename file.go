@@ -271,11 +271,12 @@ func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, req
 		return
 	}
 
+	// 根据存储类型上传文件
 	switch storage {
 	case "s3":
 		fileUploadReq := upload.S3FileUploadReq{
 			Session:     fileUploadResp.Data.SessionID,
-			UploadURL:   fileUploadResp.Data.UploadID,
+			UploadURL:   fileUploadResp.Data.UploadURLs[0],
 			CompleteURL: fileUploadResp.Data.CompleteURL,
 		}
 		s3 := upload.NewS3FileUploadFunc(fileUploadReq)

@@ -13,7 +13,7 @@ import (
 func TestMain(t *testing.T) {
 	logging.NewLogger("debug")
 
-	c, err := config.SetConfig("../../config.yml")
+	c, err := config.SetConfig("./config.yml")
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -21,7 +21,7 @@ func TestMain(t *testing.T) {
 
 	requrl.Default(c.GetString("address"))
 
-	srcPath := "D:\\Users\\even0\\Desktop\\20190416074543图片8.png"
+	srcPath := "E:\\Users\\even\\Pictures\\壁纸\\1.jpg"
 	f, err := os.Stat(srcPath)
 	if err != nil {
 		slog.Error(err.Error())
