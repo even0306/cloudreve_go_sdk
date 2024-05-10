@@ -10,6 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/even0306/cloudreve_go_sdk/api/upload"
+	"github.com/even0306/cloudreve_go_sdk/requrl"
 )
 
 type Operation interface {
@@ -59,21 +62,24 @@ type FileDownloadResp struct {
 	Msg  string `json:"msg"`
 }
 
-type FileUploadResp struct {
-	// 响应状态
-	Code int64          `json:"code"`
-	Data FileUploadData `json:"data"`
-	// 错误信息
-	Msg string `json:"msg"`
-}
-
 type FileUploadData struct {
 	// 上传分片大小
 	ChunkSize int64 `json:"chunkSize"`
 	// 上传会话过期时间
 	Expires int64 `json:"expires"`
 	// 用于上传完成后确认
-	SessionID string `json:"sessionID"`
+	SessionID   string   `json:"sessionID"`
+	UploadURLs  []string `json:"uploadURLs"`
+	UploadID    string   `json:"uploadID"`
+	CompleteURL string   `json:"completeURL"`
+}
+
+type FileUploadResp struct {
+	// 响应状态
+	Code int64          `json:"code"`
+	Data FileUploadData `json:"data"`
+	// 错误信息
+	Msg string `json:"msg"`
 }
 
 type FileUploadReq struct {
@@ -123,29 +129,44 @@ func NewFileUploadFunc() *FileUploadResp {
 
 // 获取目录列表
 func (list *DirectoryList) GetDirectoryList(path string) {
-	resp, err := Client.Get(ReqHost + "/api/v3/directory" + path)
+	resp, err := requrl.Client.Get(requrl.ReqHost + "/api/v3/directory" + path)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Warn("", "Status", resp.StatusCode)
+		return
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&list)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
-	slog.Error(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
+
+	if list.Code != 0 {
+		slog.Error(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
+		return
+	}
+
+	slog.Debug(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
 }
 
 // 下载文件
-func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst string) *FileDownloadResp {
-	req, err := http.NewRequest("PUT", ReqHost+"/api/v3/file/download/"+fileInfo.ID, nil)
+func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst string) {
+	req, err := http.NewRequest("PUT", requrl.ReqHost+"/api/v3/file/download/"+fileInfo.ID, nil)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
-	resp, err := Client.Do(req)
+	resp, err := requrl.Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -155,150 +176,146 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst stri
 	err = json.NewDecoder(resp.Body).Decode(&fileDownloadResp)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	slog.Info("", slog.Int("Code:", fileDownloadResp.Code), slog.String("Msg:", fileDownloadResp.Msg), slog.Any("Data:", fileDownloadResp.Data))
 
 	if fileDownloadResp.Code != 0 {
 		slog.Error(fmt.Sprint(fileDownloadResp.Code), "Msg", fileDownloadResp.Msg, "Data", fileDownloadResp.Data)
+		return
 	}
 
-	req, err = http.NewRequest("GET", ReqHost+fileDownloadResp.Data, nil)
+	req, err = http.NewRequest("GET", requrl.ReqHost+fileDownloadResp.Data, nil)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
-	resp, err = Client.Do(req)
+	resp, err = requrl.Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("", "Status", resp.StatusCode)
+		slog.Warn("", "Status", resp.StatusCode)
 	}
 
 	fileData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	err = json.NewDecoder(bytes.NewReader(fileData)).Decode(&fileDownloadResp)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	if fileDownloadResp.Code != 0 {
 		slog.Error(fmt.Sprint(fileDownloadResp.Code), "Msg", fileDownloadResp.Msg, "Data", fileDownloadResp.Data)
+		return
 	}
 
 	f, err := os.OpenFile(filepath.Join(dst, fileInfo.Name), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	defer f.Close()
 
 	io.Copy(f, bytes.NewReader(fileData))
-
-	return fileDownloadResp
 }
 
-// S3上传文件
-func (fileUploadResp *FileUploadResp) Upload(reqInfo FileUploadReq) *FileUploadResp {
+// 上传文件
+func (fileUploadResp *FileUploadResp) Upload(storage string, reqInfo FileUploadReq) {
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(reqInfo)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
-	req, err := http.NewRequest("PUT", ReqHost+"/api/v3/file/upload", &buf)
+	req, err := http.NewRequest("PUT", requrl.ReqHost+"/api/v3/file/upload", &buf)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	// 创建上传会话
-	resp, err := Client.Do(req)
+	resp, err := requrl.Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("", "Status", resp.StatusCode)
-		return fileUploadResp
+		slog.Warn("", "Status", resp.StatusCode)
+		return
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&fileUploadResp)
 	if err != nil {
 		slog.Error(err.Error())
-
+		return
 	}
 
 	slog.Debug(fmt.Sprint(fileUploadResp.Code), "Data", fileUploadResp.Data, "Msg", fileUploadResp.Msg)
 
 	if fileUploadResp.Code != 0 {
 		slog.Error(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
-		return fileUploadResp
+		return
 	}
 
-	req, err = http.NewRequest("GET", ReqHost+"/api/v3/callback/s3"+fileUploadResp.Data.SessionID, nil)
-	if err != nil {
-		slog.Error(err.Error())
+	switch storage {
+	case "s3":
+		fileUploadReq := upload.S3FileUploadReq{
+			Session:     fileUploadResp.Data.SessionID,
+			UploadURL:   fileUploadResp.Data.UploadID,
+			CompleteURL: fileUploadResp.Data.CompleteURL,
+		}
+		s3 := upload.NewS3FileUploadFunc(fileUploadReq)
+		s3.Upload()
+	default:
+		slog.Warn("不存在的存储类型")
 	}
-
-	// 执行S3上传
-	resp, err = Client.Do(req)
-	if err != nil {
-		slog.Error(err.Error())
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		slog.Error("", "Status", resp.StatusCode)
-		return fileUploadResp
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&fileUploadResp)
-	if err != nil {
-		slog.Error(err.Error())
-	}
-
-	if fileUploadResp.Code != 0 {
-		slog.Error(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
-		return fileUploadResp
-	}
-
-	return fileUploadResp
 }
 
 // 删除上传会话
-func (fileUploadResp *FileUploadResp) DeleteUploadSessionID(fileUploadSessionID string) *FileUploadResp {
-	req, err := http.NewRequest("DELETE", ReqHost+"/api/v3/upload/"+fileUploadSessionID, nil)
+func (fileUploadResp *FileUploadResp) DeleteUploadSessionID(fileUploadSessionID string) {
+	req, err := http.NewRequest("DELETE", requrl.ReqHost+"/api/v3/file/upload/"+fileUploadSessionID, nil)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
-	resp, err := Client.Do(req)
+	resp, err := requrl.Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Warn("", "Status", resp.StatusCode)
+		return
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&fileUploadResp)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	slog.Info(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
 
 	if fileUploadResp.Code != 0 {
 		slog.Error(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
+		return
 	}
-
-	return fileUploadResp
 }
 
 func (f *FileMoveResp) Move() {

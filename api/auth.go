@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/even0306/cloudreve_go_sdk/requrl"
 )
 
 type Auth interface {
@@ -44,6 +46,12 @@ type AuthRespBody struct {
 	Msg  string   `json:"msg"`
 }
 
+type AuthUserInfo struct {
+	UserName    string
+	Password    string
+	CaptchaCode string
+}
+
 func NewAuthFunc() *AuthRespBody {
 	return &AuthRespBody{
 		Code: 0,
@@ -52,17 +60,23 @@ func NewAuthFunc() *AuthRespBody {
 	}
 }
 
-func (respBody *AuthRespBody) Login(loginData map[string]any) {
-	bytesData, _ := json.Marshal(loginData)
-
-	req, err := http.NewRequest("POST", ReqHost+"/api/v3/user/session", bytes.NewReader(bytesData))
+func (respBody *AuthRespBody) Login(loginData AuthUserInfo) {
+	b, err := json.Marshal(&loginData)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
-	resp, err := Client.Do(req)
+	req, err := http.NewRequest("POST", requrl.ReqHost+"/api/v3/user/session", bytes.NewReader(b))
 	if err != nil {
 		slog.Error(err.Error())
+		return
+	}
+
+	resp, err := requrl.Client.Do(req)
+	if err != nil {
+		slog.Error(err.Error())
+		return
 	}
 	defer resp.Body.Close()
 
@@ -73,6 +87,7 @@ func (respBody *AuthRespBody) Login(loginData map[string]any) {
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
 }

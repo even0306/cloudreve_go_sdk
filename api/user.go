@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/even0306/cloudreve_go_sdk/requrl"
 )
 
 type UserAPI interface {
@@ -61,13 +63,15 @@ func (respBody *UserRespBody) GetUserProfile(id string) {
 	params := url.Values{}
 	params.Add("type", "default")
 	params.Add("page", "1")
-	req, err := http.NewRequest("GET", ReqHost+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
+	req, err := http.NewRequest("GET", requrl.ReqHost+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
-	resp, err := Client.Do(req)
+	resp, err := requrl.Client.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 	defer resp.Body.Close()
 
@@ -78,6 +82,7 @@ func (respBody *UserRespBody) GetUserProfile(id string) {
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
 		slog.Error(err.Error())
+		return
 	}
 
 	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)

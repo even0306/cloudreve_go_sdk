@@ -1,4 +1,4 @@
-package api
+package requrl
 
 import (
 	"log/slog"
