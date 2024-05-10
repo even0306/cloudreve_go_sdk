@@ -12,7 +12,7 @@ import (
 
 func NewLogger(level string) {
 	dir := common.GetExecPath()
-	logFile, err := os.OpenFile(filepath.Join(dir), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join(dir)+"/server.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error(err.Error())
 	}

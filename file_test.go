@@ -21,7 +21,7 @@ func TestMain(t *testing.T) {
 
 	requrl.Default(c.GetString("address"))
 
-	srcPath := "E:\\Users\\even\\Pictures\\壁纸\\1.jpg"
+	srcPath := "D:\\Users\\even0\\Pictures\\壁纸\\1.jpg"
 	f, err := os.Stat(srcPath)
 	if err != nil {
 		slog.Error(err.Error())
@@ -56,7 +56,7 @@ func TestMain(t *testing.T) {
 	}
 
 	up := NewFileUploadFunc()
-	err = up.Upload("s3", srcPath, reqInfo)
+	err = up.CreateUpload("storage", srcPath, reqInfo)
 	if err != nil {
 		slog.Error(err.Error())
 		err = up.DeleteUploadSessionID(up.Data.SessionID)

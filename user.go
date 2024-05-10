@@ -83,7 +83,7 @@ func (respBody *UserRespBody) GetUserProfile(id string) error {
 		return err
 	}
 
-	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
+	slog.Info(respBody.Msg, "Code", respBody.Code, "Data", respBody.Data)
 
 	return nil
 }

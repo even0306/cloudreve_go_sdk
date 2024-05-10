@@ -17,7 +17,7 @@ import (
 
 type Operation interface {
 	Download(fileInfo Object, dst string) error
-	Upload(reqInfo FileUploadReq) error
+	CreateUpload(storageType string, srcPath string, reqInfo FileUploadReq) error
 	Move() error
 	Copy() error
 	GetDirectoryList(path string) error
@@ -145,11 +145,10 @@ func (list *DirectoryList) GetDirectoryList(path string) error {
 	}
 
 	if list.Code != 0 {
-		slog.Error(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
-		return fmt.Errorf(fmt.Sprint(list.Code), list.Msg, list.Data)
+		return fmt.Errorf(list.Msg, "Code", fmt.Sprint(list.Code), list.Data)
 	}
 
-	slog.Debug(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
+	slog.Debug(list.Msg, "Code", fmt.Sprint(list.Code), "Data", list.Data)
 
 	return nil
 }
@@ -175,10 +174,10 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst stri
 		return err
 	}
 
-	slog.Info("", slog.Int("Code:", fileDownloadResp.Code), slog.String("Msg:", fileDownloadResp.Msg), slog.Any("Data:", fileDownloadResp.Data))
+	slog.Info(fileDownloadResp.Msg, "Code:", fileDownloadResp.Code, "Data:", fileDownloadResp.Data)
 
 	if fileDownloadResp.Code != 0 {
-		return fmt.Errorf(fmt.Sprint(fileDownloadResp.Code), fileDownloadResp.Msg, fileDownloadResp.Data)
+		return fmt.Errorf(fileDownloadResp.Msg, fmt.Sprint(fileDownloadResp.Code), fileDownloadResp.Data)
 	}
 
 	req, err = http.NewRequest("GET", requrl.ReqHost+fileDownloadResp.Data, nil)
@@ -222,7 +221,7 @@ func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst stri
 }
 
 // 上传文件
-func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, reqInfo FileUploadReq) error {
+func (fileUploadResp *FileUploadResp) CreateUpload(storageType string, srcPath string, reqInfo FileUploadReq) error {
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(reqInfo)
 	if err != nil {
@@ -250,22 +249,31 @@ func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, req
 		return err
 	}
 
-	slog.Debug(fmt.Sprint(fileUploadResp.Code), "Data", fileUploadResp.Data, "Msg", fileUploadResp.Msg)
+	slog.Debug(fmt.Sprint(fileUploadResp.Msg, "Code", fileUploadResp.Code), "Data", fileUploadResp.Data)
 
 	if fileUploadResp.Code != 0 {
-		return fmt.Errorf(fmt.Sprint(fileUploadResp.Code), fileUploadResp.Msg, fileUploadResp.Data)
+		return fmt.Errorf(fileUploadResp.Msg, fmt.Sprint(fileUploadResp.Code), fileUploadResp.Data)
 	}
 
 	// 根据存储类型上传文件
-	switch storage {
+	switch storageType {
 	case "s3":
 		fileUploadReq := upload.S3FileUploadReq{
 			Session:     fileUploadResp.Data.SessionID,
 			UploadURL:   fileUploadResp.Data.UploadURLs[0],
 			CompleteURL: fileUploadResp.Data.CompleteURL,
 		}
-		s3 := upload.NewS3FileUploadFunc(fileUploadReq)
-		err = s3.Upload(srcPath)
+		s3 := upload.NewS3FileUploadFunc()
+		err = s3.Upload(srcPath, fileUploadReq)
+		if err != nil {
+			return err
+		}
+	case "storage":
+		fileUploadReq := upload.StorageFileUploadReq{
+			Session: fileUploadResp.Data.SessionID,
+		}
+		storage := upload.NewStorageFileUploadFunc()
+		err = storage.Upload(srcPath, fileUploadReq)
 		if err != nil {
 			return err
 		}
@@ -297,10 +305,10 @@ func (fileUploadResp *FileUploadResp) DeleteUploadSessionID(fileUploadSessionID 
 		return err
 	}
 
-	slog.Info(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
+	slog.Info(fileUploadResp.Msg, "Code", fmt.Sprint(fileUploadResp.Code), "Data", fileUploadResp.Data)
 
 	if fileUploadResp.Code != 0 {
-		return fmt.Errorf(fmt.Sprint(fileUploadResp.Code), fileUploadResp.Msg, fileUploadResp.Data)
+		return fmt.Errorf(fileUploadResp.Msg, fmt.Sprint(fileUploadResp.Code), fileUploadResp.Data)
 	}
 
 	return nil
