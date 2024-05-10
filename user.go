@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -11,7 +12,7 @@ import (
 )
 
 type UserAPI interface {
-	GetUserInfo()
+	GetUserInfo() error
 }
 
 type User struct {
@@ -59,31 +60,30 @@ func NewUserOperation() *UserRespBody {
 	}
 }
 
-func (respBody *UserRespBody) GetUserProfile(id string) {
+func (respBody *UserRespBody) GetUserProfile(id string) error {
 	params := url.Values{}
 	params.Add("type", "default")
 	params.Add("page", "1")
 	req, err := http.NewRequest("GET", requrl.ReqHost+"/api/v3/user/profile/"+id+"?"+params.Encode(), nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
+
+	return nil
 }

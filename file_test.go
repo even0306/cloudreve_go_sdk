@@ -35,10 +35,16 @@ func TestMain(t *testing.T) {
 		CaptchaCode: "",
 	}
 
-	auth.Login(userInfo)
+	err = auth.Login(userInfo)
+	if err != nil {
+		slog.Error(err.Error())
+	}
 
 	list := NewDirectoryListFunc()
-	list.GetDirectoryList("/")
+	err = list.GetDirectoryList("/")
+	if err != nil {
+		slog.Error(err.Error())
+	}
 
 	var reqInfo = FileUploadReq{
 		LastModified: f.ModTime().UnixMilli(),
@@ -53,5 +59,9 @@ func TestMain(t *testing.T) {
 	err = up.Upload("s3", srcPath, reqInfo)
 	if err != nil {
 		slog.Error(err.Error())
+		err = up.DeleteUploadSessionID(up.Data.SessionID)
+		if err != nil {
+			slog.Error(err.Error())
+		}
 	}
 }

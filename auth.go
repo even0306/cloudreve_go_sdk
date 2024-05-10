@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -10,7 +11,7 @@ import (
 )
 
 type Auth interface {
-	Login()
+	Login() error
 }
 
 type Group struct {
@@ -60,34 +61,32 @@ func NewAuthFunc() *AuthRespBody {
 	}
 }
 
-func (respBody *AuthRespBody) Login(loginData AuthUserInfo) {
+func (respBody *AuthRespBody) Login(loginData AuthUserInfo) error {
 	b, err := json.Marshal(&loginData)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	req, err := http.NewRequest("POST", requrl.ReqHost+"/api/v3/user/session", bytes.NewReader(b))
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	slog.Info("", "Code", respBody.Code, "Msg", respBody.Msg, "Data", respBody.Data)
+
+	return nil
 }

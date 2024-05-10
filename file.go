@@ -16,12 +16,12 @@ import (
 )
 
 type Operation interface {
-	Download(fileInfo Object, dst string)
-	Upload(reqInfo FileUploadReq)
-	Move()
-	Copy()
-	GetDirectoryList(path string)
-	DeleteUploadSessionID()
+	Download(fileInfo Object, dst string) error
+	Upload(reqInfo FileUploadReq) error
+	Move() error
+	Copy() error
+	GetDirectoryList(path string) error
+	DeleteUploadSessionID() error
 }
 
 type Policy struct {
@@ -128,106 +128,97 @@ func NewFileUploadFunc() *FileUploadResp {
 }
 
 // 获取目录列表
-func (list *DirectoryList) GetDirectoryList(path string) {
+func (list *DirectoryList) GetDirectoryList(path string) error {
 	resp, err := requrl.Client.Get(requrl.ReqHost + "/api/v3/directory" + path)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&list)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if list.Code != 0 {
 		slog.Error(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
-		return
+		return fmt.Errorf(fmt.Sprint(list.Code), list.Msg, list.Data)
 	}
 
 	slog.Debug(fmt.Sprint(list.Code), "Msg", list.Msg, "Data", list.Data)
+
+	return nil
 }
 
 // 下载文件
-func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst string) {
+func (fileDownloadResp *FileDownloadResp) FileDownload(fileInfo Object, dst string) error {
 	req, err := http.NewRequest("PUT", requrl.ReqHost+"/api/v3/file/download/"+fileInfo.ID, nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&fileDownloadResp)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	slog.Info("", slog.Int("Code:", fileDownloadResp.Code), slog.String("Msg:", fileDownloadResp.Msg), slog.Any("Data:", fileDownloadResp.Data))
 
 	if fileDownloadResp.Code != 0 {
-		slog.Error(fmt.Sprint(fileDownloadResp.Code), "Msg", fileDownloadResp.Msg, "Data", fileDownloadResp.Data)
-		return
+		return fmt.Errorf(fmt.Sprint(fileDownloadResp.Code), fileDownloadResp.Msg, fileDownloadResp.Data)
 	}
 
 	req, err = http.NewRequest("GET", requrl.ReqHost+fileDownloadResp.Data, nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err = requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	fileData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	err = json.NewDecoder(bytes.NewReader(fileData)).Decode(&fileDownloadResp)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if fileDownloadResp.Code != 0 {
-		slog.Error(fmt.Sprint(fileDownloadResp.Code), "Msg", fileDownloadResp.Msg, "Data", fileDownloadResp.Data)
-		return
+		return fmt.Errorf(fmt.Sprint(fileDownloadResp.Code), fileDownloadResp.Msg, fileDownloadResp.Data)
 	}
 
 	f, err := os.OpenFile(filepath.Join(dst, fileInfo.Name), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 	defer f.Close()
 
 	io.Copy(f, bytes.NewReader(fileData))
+
+	return nil
 }
 
 // 上传文件
@@ -286,42 +277,39 @@ func (fileUploadResp *FileUploadResp) Upload(storage string, srcPath string, req
 }
 
 // 删除上传会话
-func (fileUploadResp *FileUploadResp) DeleteUploadSessionID(fileUploadSessionID string) {
+func (fileUploadResp *FileUploadResp) DeleteUploadSessionID(fileUploadSessionID string) error {
 	req, err := http.NewRequest("DELETE", requrl.ReqHost+"/api/v3/file/upload/"+fileUploadSessionID, nil)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	resp, err := requrl.Client.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("", "Status", resp.StatusCode)
-		return
+		return fmt.Errorf(fmt.Sprint(resp.StatusCode))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&fileUploadResp)
 	if err != nil {
-		slog.Error(err.Error())
-		return
+		return err
 	}
 
 	slog.Info(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
 
 	if fileUploadResp.Code != 0 {
-		slog.Error(fmt.Sprint(fileUploadResp.Code), "Msg", fileUploadResp.Msg, "Data", fileUploadResp.Data)
-		return
+		return fmt.Errorf(fmt.Sprint(fileUploadResp.Code), fileUploadResp.Msg, fileUploadResp.Data)
 	}
+
+	return nil
 }
 
-func (f *FileMoveResp) Move() {
-
+func (f *FileMoveResp) Move() error {
+	return nil
 }
 
-func (f *FileCopyResp) Copy() {
-
+func (f *FileCopyResp) Copy() error {
+	return nil
 }
